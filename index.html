@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>STIMULEX — Dark Matte (Vue SPA)</title>
+
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg:   '#0e1113',      /* графитовый фон */
+                        card: '#13181c',      /* карточки */
+                        soft: '#1b2227',      /* панели/границы */
+                        primary: '#ffb020',   /* янтарный акцент */
+                        accent:  '#62d4a0',   /* мягкий мятный для второстепенных акцентов */
+                        text:   '#e7ecef',
+                        sub:    '#9aa4ac'
+                    },
+                    boxShadow: {
+                        soft: '0 2px 12px rgba(0,0,0,.35)',
+                        ring: 'inset 0 0 0 1px rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.35)'
+                    },
+                    backdropBlur: { xs: '2px' },
+                    keyframes: {
+                        marquee:{'0%':{transform:'translateX(0)'},'100%':{transform:'translateX(-50%)'}}
+                    },
+                    animation:{ marquee:'marquee 20s linear infinite' }
+                }
+            }
+        }
+    </script>
+    <style>
+        html,body{background:#0e1113}
+        .glass{ background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+            backdrop-filter: blur(4px); }
+        .focus-ring:focus{ outline:none; box-shadow: 0 0 0 3px rgba(255,176,32,.25); }
+        .scrollbar::-webkit-scrollbar{height:6px;width:6px}
+        .scrollbar::-webkit-scrollbar-thumb{background:#242c32;border-radius:9999px}
+    </style>
+
+    <!-- Vue 3 + Router -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/vue-router@4"></script>
+</head>
+<body class="text-text">
+<div id="app"></div>
+
+<script type="module">
+    const { createApp, ref, computed } = Vue;
+    const { createRouter, createWebHashHistory } = VueRouter;
+
+    /* ---------- Mock data ---------- */
+    const providers = ['Все провайдеры','Pragmatic Play','NetEnt',"Play'n GO",'Hacksaw','BGaming','Red Tiger','Amatic','NoLimit City'];
+    const games = Array.from({length:36}).map((_,i)=>({
+        id:i+1,
+        title:['Arc Forge','Amber Luck','Basalt Kingdom','Midas Spin','Ivory Roads','Mint Mirage','Giza Fortune','Zephyr Rush','Obsidian Bloom','Atlas Hounds','Nova Ember','Velvet Lotus'][i%12],
+        provider: providers[1 + (i%(providers.length-1))],
+        img:`https://picsum.photos/seed/matte${i}/480/360`
+    }));
+    const winFeed = ref([
+        {name:'Алексей', game:'Amber Luck', amount: 2480},
+        {name:'Мария',  game:'Basalt Kingdom', amount: 15420},
+        {name:'Игорь',  game:'Mint Mirage', amount: 930},
+        {name:'Ольга',  game:'Giza Fortune', amount: 4210},
+        {name:'Павел',  game:'Nova Ember', amount: 7100},
+    ]);
+
+    /* ---------- UI components ---------- */
+    const AppHeader = {
+        template: `
+  <header class="sticky top-0 z-40 border-b border-soft bg-bg/85 backdrop-blur-xs">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+      <router-link to="/" class="flex items-center gap-2 mr-auto">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-soft to-card shadow-soft border border-soft"></div>
+        <span class="font-semibold tracking-wide">STIMULEX</span>
+      </router-link>
+
+      <nav class="hidden md:flex items-center gap-2">
+        <router-link class="px-3 py-1.5 rounded-lg hover:bg-soft/60" to="/">Главная</router-link>
+        <router-link class="px-3 py-1.5 rounded-lg hover:bg-soft/60" to="/slots">Слоты</router-link>
+        <router-link class="px-3 py-1.5 rounded-lg hover:bg-soft/60" to="/pay">Пополнить</router-link>
+        <router-link class="px-3 py-1.5 rounded-lg hover:bg-soft/60" to="/withdraw">Вывести</router-link>
+      </nav>
+
+      <div class="flex items-center gap-2">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-soft glass shadow-soft">
+          <span class="text-sub text-sm">Баланс</span>
+          <span class="font-semibold">6 530 ₽</span>
+        </div>
+        <router-link to="/pay"
+          class="px-4 py-2 rounded-xl bg-primary text-black font-medium hover:brightness-110 shadow-ring">
+          Пополнить
+        </router-link>
+      </div>
+    </div>
+  </header>`
+    };
+
+    const Section = {
+        props:['title','to','actionText'],
+        template: `
+            <section class="max-w-7xl mx-auto px-4 mt-6">
+                <div class="flex items-end justify-between mb-3">
+                    <h2 class="text-lg md:text-xl font-semibold">{{ title }}</h2>
+                    <router-link v-if="to" :to="to" class="text-sm text-accent hover:underline">
+                        {{ actionText || 'Показать все' }}
+                    </router-link>
+                </div>
+                <div class="rounded-2xl border border-soft glass p-3 shadow-soft">
+                    <slot></slot>
+                </div>
+            </section>`
+    };
+
+    const WinsTicker = {
+        props:['items'],
+        template: `
+            <div class="overflow-hidden relative">
+                <div class="whitespace-nowrap animate-marquee text-sm flex gap-8">
+                    <div v-for="(w,i) in items" :key="i"
+                         class="px-3 py-1 rounded-full border border-soft bg-card/70">
+                        <span class="text-sub">{{ w.name }}</span>
+                        <span class="mx-2">выиграл(а)</span>
+                        <span class="font-semibold text-primary">{{ w.amount.toLocaleString('ru-RU') }} ₽</span>
+                        <span class="ml-2 text-sub">в {{ w.game }}</span>
+                    </div>
+                    <div v-for="(w,i) in items" :key="'d'+i"
+                         class="px-3 py-1 rounded-full border border-soft bg-card/70">
+                        <span class="text-sub">{{ w.name }}</span>
+                        <span class="mx-2">выиграл(а)</span>
+                        <span class="font-semibold text-primary">{{ w.amount.toLocaleString('ru-RU') }} ₽</span>
+                        <span class="ml-2 text-sub">в {{ w.game }}</span>
+                    </div>
+                </div>
+            </div>`
+    };
+
+    const GameCard = {
+        props:['game'],
+        template: `
+            <div class="group rounded-xl overflow-hidden border border-soft bg-card hover:shadow-ring transition">
+                <img :src="game.img" alt="" class="w-full aspect-[4/3] object-cover"/>
+                <div class="p-3 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-medium leading-tight">{{ game.title }}</div>
+                        <div class="text-xs text-sub">{{ game.provider }}</div>
+                    </div>
+                    <button class="px-3 py-1.5 rounded-lg bg-soft border border-soft text-xs group-hover:bg-soft/70">
+                        Играть
+                    </button>
+                </div>
+            </div>`
+    };
+
+    const QuickGames = {
+        template: `
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+    <div v-for="g in ['DICE','MINES','BUBBLES','WHEEL','PLINKO']" :key="g"
+         class="rounded-xl p-4 border border-soft glass flex items-center justify-between hover:bg-soft/40 transition">
+      <span class="font-semibold">{{ g }}</span>
+      <span class="text-sub">→</span>
+    </div>
+  </div>`
+    };
+
+    const ProviderStrip = {
+        template: `
+  <div class="flex gap-2 overflow-x-auto scrollbar">
+    <div v-for="p in ['EVOPLAY','NETENT','RED TIGER','PRAGMATIC','AMATIC','PLAY N GO','BGAMING']" :key="p"
+         class="px-3 py-2 rounded-lg border border-soft bg-card/70 whitespace-nowrap">
+      {{ p }}
+    </div>
+  </div>`
+    };
+
+    /* ---------- Pages ---------- */
+    const HomePage = {
+        components:{Section,WinsTicker,QuickGames,ProviderStrip,GameCard},
+        setup(){
+            const popular = computed(()=>games.slice(0,12));
+            const fresh   = computed(()=>games.slice(12,24));
+            const live    = computed(()=>games.slice(24,32));
+            return { winFeed, popular, fresh, live };
+        },
+        template: `
+            <main>
+                <!-- Hero -->
+                <section class="max-w-7xl mx-auto px-4 mt-6">
+                    <div class="grid md:grid-cols-[1.6fr,1fr] gap-4">
+                        <div class="rounded-2xl p-6 border border-soft glass shadow-soft">
+                            <div class="text-sub text-xs mb-2">События недели</div>
+                            <h1 class="text-2xl md:text-3xl font-bold leading-tight mb-3">
+                                Турниры STIMULEX • Честная игра и быстрые выплаты
+                            </h1>
+                            <p class="text-sub mb-5">Играй ответственно. Не более 18+.</p>
+                            <div class="flex gap-3">
+                                <router-link to="/slots" class="px-4 py-2 rounded-xl bg-primary text-black font-medium hover:brightness-110 shadow-ring">
+                                    Играть
+                                </router-link>
+                                <a href="#" class="px-4 py-2 rounded-xl border border-soft hover:bg-soft/50">Подробнее</a>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl p-6 border border-soft bg-card shadow-soft">
+                            <div class="text-sub text-xs mb-2">Акция</div>
+                            <h3 class="text-xl font-semibold mb-3">Кешбэк <span class="text-primary">10%</span> всем каждую неделю</h3>
+                            <p class="text-sub">Возвращаем часть проигранных средств на бонусный счёт.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <Section title="Лента выигрышей">
+                    <WinsTicker :items="winFeed"/>
+                </Section>
+
+                <Section title="Быстрые игры">
+                    <QuickGames/>
+                </Section>
+
+                <Section title="Провайдеры">
+                    <ProviderStrip/>
+                </Section>
+
+                <Section title="Новые игры" to="/slots">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <GameCard v-for="g in fresh" :key="g.id" :game="g"/>
+                    </div>
+                </Section>
+
+                <Section title="Популярные игры" to="/slots">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <GameCard v-for="g in popular" :key="g.id" :game="g"/>
+                    </div>
+                </Section>
+
+                <Section title="Live-столы" to="/slots">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <GameCard v-for="g in live" :key="g.id" :game="g"/>
+                    </div>
+                </Section>
+
+                <footer class="max-w-7xl mx-auto px-4 mt-10 mb-10 text-xs text-sub flex flex-col sm:flex-row gap-2 sm:gap-6 justify-between">
+                    <div>Пользовательское соглашение • Политика конфиденциальности</div>
+                    <div>© STIMULEX, 2025</div>
+                </footer>
+            </main>`
+    };
+
+    const PaymentMethod = {
+        props:['name','min','active'],
+        template: `
+            <button class="w-full flex items-center gap-3 p-3 rounded-xl border border-soft bg-card hover:bg-soft/40 transition text-left"
+                    :class="active ? 'outline outline-2 outline-primary/40' : ''">
+                <div class="w-10 h-10 rounded-lg bg-soft border border-soft"></div>
+                <div>
+                    <div class="font-medium">{{ name }}</div>
+                    <div class="text-xs text-sub">Мин. {{ min }}</div>
+                </div>
+            </button>`
+    };
+
+    const PayPage = {
+        components:{PaymentMethod,Section},
+        setup(){
+            const amount = ref(0);
+            const preset = [200,500,1500,3000,5000];
+            const methods = ref([
+                {name:'CryptoBot', min:'100 ₽'},
+                {name:'FK Wallet', min:'10 ₽'},
+                {name:'СБП (QR)', min:'500 ₽'},
+                {name:'Номер карты', min:'2 000 ₽'},
+                {name:'USDT (TRC20)', min:'1 000 ₽'},
+            ]);
+            const selected = ref(0);
+            return { amount,preset,methods,selected };
+        },
+        template: `
+            <main class="max-w-7xl mx-auto px-4 mt-6">
+                <h1 class="text-xl font-semibold mb-4">Пополнение счёта</h1>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="rounded-2xl border border-soft glass p-4">
+                        <div class="text-sub text-sm mb-2">Выберите метод</div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div v-for="(m,i) in methods" :key="m.name" @click="selected=i">
+                                <PaymentMethod :name="m.name" :min="m.min" :active="i===selected"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-soft bg-card p-4">
+                        <div class="text-sub text-sm mb-2">Сумма</div>
+                        <input v-model.number="amount" type="number" min="0" placeholder="0"
+                               class="w-full px-3 py-3 rounded-xl bg-soft border border-soft focus-ring"/>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <button v-for="p in preset" :key="p" @click="amount=p"
+                                    class="px-3 py-1.5 rounded-lg bg-soft border border-soft hover:bg-soft/70">{{ p }}</button>
+                        </div>
+                        <div class="text-xs text-sub mt-2">Лимит одной операции: 1 ₽ — 300 000 ₽</div>
+                        <button class="mt-4 w-full px-4 py-3 rounded-xl bg-primary text-black font-medium hover:brightness-110 shadow-ring">
+                            Перейти к оплате
+                        </button>
+                    </div>
+                </div>
+
+                <Section title="История пополнений">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-sub text-xs">
+                            <tr class="text-left">
+                                <th class="p-2">ID</th><th class="p-2">Система</th><th class="p-2">Сумма</th><th class="p-2">Статус</th><th class="p-2">Дата</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="i in 6" :key="i" class="border-t border-soft/60">
+                                <td class="p-2">{{ 110000 + i }}</td>
+                                <td class="p-2">СБП</td>
+                                <td class="p-2">500 ₽</td>
+                                <td class="p-2 text-accent">Зачислено</td>
+                                <td class="p-2">Oct 10, 2025 18:1{{ i }}</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </Section>
+            </main>`
+    };
+
+    const WithdrawPage = {
+        components:{PaymentMethod},
+        setup(){
+            const methods = ref([
+                {name:'FK Wallet', min:'500 ₽'},
+                {name:'СБП', min:'200 ₽'},
+                {name:'USDT (TRC20)', min:'1 000 ₽'},
+            ]);
+            const selected = ref(0);
+            const wallet = ref('');
+            const amount = ref(0);
+            return { methods,selected,wallet,amount };
+        },
+        template: `
+            <main class="max-w-7xl mx-auto px-4 mt-6">
+                <h1 class="text-xl font-semibold mb-4">Вывод средств</h1>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="rounded-2xl border border-soft glass p-4">
+                        <div class="text-sub text-sm mb-2">Выберите метод</div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div v-for="(m,i) in methods" :key="m.name" @click="selected=i">
+                                <PaymentMethod :name="m.name" :min="m.min" :active="i===selected"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl border border-soft bg-card p-4">
+                        <div class="text-sub text-sm">Реквизиты</div>
+                        <input v-model="wallet" placeholder="Кошелёк / карта" class="w-full px-3 py-3 rounded-xl bg-soft border border-soft focus-ring"/>
+                        <div class="text-sub text-sm mt-3">Сумма</div>
+                        <input v-model.number="amount" type="number" placeholder="0" class="w-full px-3 py-3 rounded-xl bg-soft border border-soft focus-ring"/>
+                        <div class="text-xs text-sub mt-2">К зачислению: {{ amount>0 ? (amount*0.95).toLocaleString('ru-RU') : '0' }} ₽ • Комиссия: 5%</div>
+                        <button class="mt-4 w-full px-4 py-3 rounded-xl bg-primary text-black font-medium hover:brightness-110 shadow-ring">
+                            Создать выплату
+                        </button>
+                        <p class="text-xs text-sub mt-3">Вывод может занимать до 24 часов; в редких случаях — до 72 часов.</p>
+                    </div>
+                </div>
+
+                <section class="max-w-7xl mx-auto mt-6 px-4">
+                    <div class="rounded-2xl border border-soft bg-card p-4">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="text-sub text-xs">
+                                <tr class="text-left">
+                                    <th class="p-2">ID</th><th class="p-2">Система</th><th class="p-2">Сумма</th><th class="p-2">Кошелёк</th><th class="p-2">Статус</th><th class="p-2">Дата</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="i in 5" :key="i" class="border-top border-soft/60">
+                                    <td class="p-2">{{ 40000 + i }}</td>
+                                    <td class="p-2">FK</td>
+                                    <td class="p-2">{{ (10000 + i*500).toLocaleString('ru-RU') }} ₽</td>
+                                    <td class="p-2">19****{{ i }}5</td>
+                                    <td class="p-2 text-red-400">Отклонено</td>
+                                    <td class="p-2">Aug 1{{ i }}, 2025</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>`
+    };
+
+    const SlotsPage = {
+        components:{Section,GameCard,WinsTicker},
+        setup(){
+            const search = ref('');
+            const provider = ref('Все провайдеры');
+            const filtered = computed(()=> games.filter(g =>
+                (provider.value==='Все провайдеры' || g.provider===provider.value) &&
+                g.title.toLowerCase().includes(search.value.toLowerCase())
+            ));
+            return { providers, provider, search, filtered, winFeed };
+        },
+        template: `
+            <main class="max-w-7xl mx-auto px-4 mt-6">
+                <h1 class="text-xl font-semibold mb-4">Все слоты</h1>
+                <div class="rounded-2xl border border-soft glass p-3 mb-4">
+                    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                        <div class="flex-1">
+                            <input v-model="search" placeholder="Поиск игры"
+                                   class="w-full px-3 py-3 rounded-xl bg-soft border border-soft focus-ring"/>
+                        </div>
+                        <div>
+                            <select v-model="provider" class="px-3 py-3 rounded-xl bg-soft border border-soft focus-ring">
+                                <option v-for="p in providers" :key="p">{{ p }}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <GameCard v-for="g in filtered" :key="g.id" :game="g"/>
+                </div>
+
+                <Section title="Последние выигрыши">
+                    <WinsTicker :items="winFeed"/>
+                </Section>
+            </main>`
+    };
+
+    /* ---------- Router ---------- */
+    const routes = [
+        { path:'/', component: HomePage },
+        { path:'/pay', component: PayPage },
+        { path:'/withdraw', component: WithdrawPage },
+        { path:'/slots', component: SlotsPage },
+        { path:'/:pathMatch(.*)*', redirect:'/' }
+    ];
+
+    const router = createRouter({ history: createWebHashHistory(), routes });
+    const App = { components:{AppHeader}, template:`<div><AppHeader/><router-view/></div>` };
+    createApp(App).use(router).mount('#app');
+</script>
+</body>
+</html>
