@@ -1,24 +1,25 @@
-import defaultTheme from 'tailwindcss/defaultTheme';
-import forms from '@tailwindcss/forms';
-import typography from '@tailwindcss/typography';
-
-/** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
     content: [
-        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
-        './vendor/laravel/jetstream/**/*.blade.php',
-        './storage/framework/views/*.php',
-        './resources/views/**/*.blade.php',
-        './resources/js/**/*.vue',
+        './resources/**/*.blade.php',
+        './resources/**/*.php',
+        './resources/**/*.{vue,js,ts,jsx,tsx}',
     ],
-
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                baloo: ['"Baloo 2"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            },
+            colors: {
+                gold: "#FFD700",
+                purple: "#8a2be2",
+            },
+            boxShadow: {
+                glossy: "0 10px 25px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08)",
             },
         },
     },
-
-    plugins: [forms, typography],
+    plugins: [
+        require('@tailwindcss/forms'),
+        require('@tailwindcss/typography'),
+    ],
 };

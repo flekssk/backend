@@ -3,19 +3,16 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="1plat" content="959">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
-
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <title>Socia Casino</title>
 
         <!-- Scripts -->
         @routes
-        @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
+        @vite(['resources/js/app.js'])
         @inertiaHead
     </head>
-    <body class="font-sans antialiased">
+    <body class="bg-gray-950 text-white">
         @inertia
     </body>
 </html>

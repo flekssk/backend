@@ -1,23 +1,30 @@
-import './bootstrap.js';
-import '../css/app.css';
-
-import { createApp, h } from 'vue';
-import { createInertiaApp } from '@inertiajs/vue3';
-import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import { ZiggyVue } from 'ziggy-js';
-
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+import {createApp, h} from 'vue';
+import ElementPlus from 'element-plus';
+import 'element-plus/dist/index.css';
+import './index.css';
+import 'animate.css';
+import {MotionPlugin} from '@vueuse/motion';
+import '@fontsource/baloo-2/400.css';
+import '@fontsource/baloo-2/700.css';
+import {createInertiaApp} from "@inertiajs/vue3";
+import mitt from "mitt";
+import {createPinia} from "pinia";
+import { useUserStore } from "@/Stores/user.ts";
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
-    resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
-    setup({ el, App, props, plugin }) {
-        return createApp({ render: () => h(App, props) })
-            .use(plugin)
-            .use(ZiggyVue)
+    resolve: (name) => import(`./Pages/${name}.vue`),
+    setup({el, App, props, plugin}) {
+        const app = createApp({render: () => h(App, props)})
+
+        app.config.globalProperties.$emitter = mitt();
+
+        app.use(plugin)
+            .use(ElementPlus)
+            .use(MotionPlugin)
+            .use(createPinia())
             .mount(el);
+
+        const userStore = useUserStore()
+        userStore.init()
     },
-    progress: {
-        color: '#4B5563',
-    },
-});
+}).then(r => {});
