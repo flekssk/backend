@@ -6,9 +6,9 @@ namespace App\Payments\Enum;
 
 enum PaymentProviderIconsEnum: string
 {
-    case FK = '/assets/withdraw/bank-fk.png';
-    case CRYPTOBOT = '/assets/withdraw/bank-cryptobot.png';
-    case SBP = "/assets/withdraw/bank-sb.png";
-    case CARD = "/assets/withdraw/bank-cards.png";
-    case USDT = '/assets/withdraw/bank-usdc.png';
+    case FK = '/images/withdraw/bank-fk.png';
+    case CRYPTOBOT = '/images/withdraw/bank-cryptobot.png';
+    case SBP = "/images/withdraw/bank-sb.png";
+    case CARD = "/images/withdraw/bank-cards.png";
+    case USDT = '/images/withdraw/bank-usdc.png';
 }

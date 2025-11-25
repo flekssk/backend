@@ -3,6 +3,9 @@
 artisan:
 	docker compose -f docker-compose.yml exec php php artisan $(filter-out $@,$(MAKECMDGOALS))
 
+artisan-socket:
+	docker compose -f docker-compose.yml exec websocket php artisan $(filter-out $@,$(MAKECMDGOALS))
+
 bash:
 	docker compose -f docker-compose.yml exec bash
 

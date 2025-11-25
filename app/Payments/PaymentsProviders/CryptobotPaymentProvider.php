@@ -8,6 +8,9 @@ use App\Helpers\CryptocurrencyConvertorHelper;
 use App\Payments\Api\Cryptobot\CryptobotApiClient;
 use App\Payments\Api\Cryptobot\Requests\CryptobotCreateInvoiceRequest;
 use App\Payments\Api\Cryptobot\Requests\CryptobotTransferRequest;
+use App\Payments\DTO\PaymentStatusDTO;
+use App\Payments\DTO\PaymentStatusListRequestDTO;
+use App\Payments\Enum\PaymentStatusEnum;
 use App\Payments\Enum\WithdrawStatusEnum;
 use App\Payments\Models\Payment;
 use App\Payments\Models\Withdraw;
@@ -17,6 +20,7 @@ use App\Payments\ValueObjects\PaymentProviderConfig;
 use App\Payments\ValueObjects\PaymentRedirectResult;
 use App\Payments\ValueObjects\PaymentShowSBPResult;
 use App\Payments\ValueObjects\WithdrawResult;
+use App\ValueObjects\Id;
 use DomainException;
 use Exception;
 use GuzzleHttp\Exception\ClientException;
@@ -49,7 +53,7 @@ class CryptobotPaymentProvider extends PaymentProvider
     public function pay(Payment $payment): PaymentErrorResult|PaymentRedirectResult|PaymentShowSBPResult
     {
         $request = new CryptobotCreateInvoiceRequest(
-            $this->reduceAmountByBonusPercents($payment),
+            $payment->amount,
             'USDT',
             (string)$payment->id
         );
@@ -79,7 +83,7 @@ class CryptobotPaymentProvider extends PaymentProvider
         try {
             $response = $this->apiClient->transfer(
                 new CryptobotTransferRequest(
-                    $withdraw->id === 42113 ? 7401132119 : $userId,
+                    $userId,
                     CryptocurrencyConvertorHelper::convertRubToUsdt($withdraw->sumWithCom),
                     'USDT',
                     (string)$withdraw->id
@@ -108,5 +112,12 @@ class CryptobotPaymentProvider extends PaymentProvider
     public function getBalance(): array
     {
         return $this->apiClient->balance();
+    }
+
+    public function getPayments(PaymentStatusListRequestDTO $dto): array
+    {
+        return [
+
+        ];
     }
 }

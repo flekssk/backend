@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Repositories\Payments;
+namespace App\Payments\Repositories;
 
 use App\Payments\Models\Withdraw;
 use FKS\Repositories\Repository;

@@ -8,7 +8,7 @@ use App\Models\Action;
 use App\Models\MobuleSlot;
 use App\Models\SlotSession;
 use App\Models\User;
-use App\Services\Slots\Facades\SlotServiceFacade;
+use App\Services\Games\Facades\SlotServiceFacade;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -121,52 +121,6 @@ class MobuleSlotsController extends Controller
         return '/images/soon.png';
     }
 
-    public function loadSlot(Request $request)
-    {
-        $slot = MobuleSlot::where('id', $request->slot_id)->first();
-        $user = $request->user();
-
-        if (!$slot || $slot->show == 0) {
-            return response()->json(['message' => 'Игра не найдена'], 404);
-        }
-
-        if (!$user) {
-            return response()->json(['message' => 'Авторизуйтесь'], 401);
-        }
-
-        if ($user->is_youtuber) {
-            return response()->json(['message' => 'Ваша роль запрещает вам это действие'], 401);
-        }
-
-        // Генерируем auth_token только если его нет (можно оставить для других целей)
-        if ($user->auth_token == null) {
-            $user->auth_token = Str::random(12);
-            $user->save();
-        }
-
-        $user->current_id = $slot->id;
-        $user->save();
-
-        // Создаём игровую сессию
-        $gameSession = SlotSession::create([
-            'user_id' => $user->id,
-            'game_id' => $slot->id,
-            'created_at' => now(),
-        ]);
-
-        $partner = "stimule2";
-        $currency = "RUB";
-        $mobile = $request->input('mobile', false);
-        $mobile = $mobile ? 'true' : 'false';
-        $lang = "ru";
-        $lobbyurl = config('app.url');
-
-        $link = $this->apiUrl . "/games.start?partner.alias=" . $partner . "&partner.session={$gameSession->id}&game.provider={$slot->provider}&game.alias={$slot->alias}&lang={$lang}&lobby_url={$lobbyurl}&currency={$currency}&mobile={$mobile}";
-        // $demo_link = $this->apiUrl . "/games.startDemo?partner.alias=" . $partner . "&partner.session={$gameSession->id}&game.provider={$slot->provider}&game.alias={$slot->alias}&lang={$lang}&lobby_url={$lobbyurl}&currency={$currency}&mobile={$mobile}";
-
-        return response()->json(['title' => $slot->title, 'link' => $link]);
-    }
-
     public function getIp()
     {
         if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
@@ -237,6 +191,103 @@ class MobuleSlotsController extends Controller
         $joined = implode("&", $joined);
 
         return md5($joined . "&" . $method . "&" . $partner . "&" . $secret);
+    }
+
+    public function show($id)
+    {
+        $slot = MobuleSlot::where('id', $id)->first();
+
+        if (!$slot) {
+            return response()->json(['error' => true, 'message' => 'Данный слот не найден'], 404);
+        }
+
+        return response()->json(['success' => true, 'slot' => $slot], 200);
+    }
+
+    public function userCreditUpdateAmount($user_id, $credit_amount)
+    {
+        $user = User::where('id', $user_id)->first();
+
+        if ($credit_amount > 0) {
+            Action::create([
+                'user_id' => $user->id,
+                'action' => 'slot (+' . $credit_amount . ')',
+                'balanceBefore' => $user->balance,
+                'balanceAfter' => $user->balance + $credit_amount
+            ]);
+
+            if (!(Cache::has('user.' . $user->id . '.historyBalance'))) {
+                Cache::put('user.' . $user->id . '.historyBalance', '[]');
+            }
+
+            $hist_balance = array(
+                'user_id' => $user->id,
+                'type' => 'slot (+' . $credit_amount . ')',
+                'balance_before' => $user->balance,
+                'balance_after' => $user->balance + $credit_amount,
+                'date' => date('d.m.Y H:i:s')
+            );
+            $user->increment('slots', $credit_amount);
+
+            $cashe_hist_user = Cache::get('user.' . $user->id . '.historyBalance');
+            $cashe_hist_user = json_decode($cashe_hist_user);
+            $cashe_hist_user[] = $hist_balance;
+            $cashe_hist_user = json_encode($cashe_hist_user);
+            Cache::put('user.' . $user->id . '.historyBalance', $cashe_hist_user);
+
+            $slot = MobuleSlot::where('id', $user->current_id)->first();
+            if (!$user->is_youtuber && $slot && $slot->title) {
+                Redis::publish('slotsHistory', json_encode([
+                    'id' => $slot->id,
+                    'game_id' => $user->current_id,
+                    'image' => SlotServiceFacade::getImage($slot) ?? '/assets/image/slots/' . implode('', explode(' ', $slot->title)) . '.jpg',
+                    'slot_name' => $slot->title,
+                    'username' => $user->username,
+                    'coef' => number_format(($credit_amount / $user->current_bet), 2),
+                    'win' => $credit_amount
+                ]));
+            }
+        }
+
+        $user->balance += $credit_amount;
+        $user->save();
+        $user->refresh();
+
+        return $user->balance;
+    }
+
+    public function userDebitUpdateAmount($user_id, $debit_amount)
+    {
+        $user = User::where('id', $user_id)->first();
+        Action::create([
+            'user_id' => $user->id,
+            'action' => 'slot (-' . $debit_amount . ')',
+            'balanceBefore' => $user->balance,
+            'balanceAfter' => $user->balance - $debit_amount
+        ]);
+
+        if($user->slots_wager){
+            if ($user->slots_wager > 0) {
+                $user->slots_wager -= $debit_amount;
+            }
+            if ($user->slots_wager < 0) $user->slots_wager = 0;
+        }
+
+        if ($user->wager > 0) {
+            $user->wager -= $debit_amount;
+        }
+
+        if ($user->wager < 0) {
+            $user->wager = 0;
+        }
+
+        $user->balance -= $debit_amount;
+        $user->current_bet = $debit_amount;
+        $user->decrement('slots', $debit_amount);
+        $user->save();
+        $user->refresh();
+
+        return $user->balance;
     }
 
     private function trxCancel($data)
@@ -355,102 +406,5 @@ class MobuleSlotsController extends Controller
             ]);
             return response()->json(['message' => 'Внутренняя ошибка сервера'], 500);
         }
-    }
-
-    public function show($id)
-    {
-        $slot = MobuleSlot::where('id', $id)->first();
-
-        if (!$slot) {
-            return response()->json(['error' => true, 'message' => 'Данный слот не найден'], 404);
-        }
-
-        return response()->json(['success' => true, 'slot' => $slot], 200);
-    }
-
-    public function userCreditUpdateAmount($user_id, $credit_amount)
-    {
-        $user = User::where('id', $user_id)->first();
-
-        if ($credit_amount > 0) {
-            Action::create([
-                'user_id' => $user->id,
-                'action' => 'slot (+' . $credit_amount . ')',
-                'balanceBefore' => $user->balance,
-                'balanceAfter' => $user->balance + $credit_amount
-            ]);
-
-            if (!(Cache::has('user.' . $user->id . '.historyBalance'))) {
-                Cache::put('user.' . $user->id . '.historyBalance', '[]');
-            }
-
-            $hist_balance = array(
-                'user_id' => $user->id,
-                'type' => 'slot (+' . $credit_amount . ')',
-                'balance_before' => $user->balance,
-                'balance_after' => $user->balance + $credit_amount,
-                'date' => date('d.m.Y H:i:s')
-            );
-            $user->increment('slots', $credit_amount);
-
-            $cashe_hist_user = Cache::get('user.' . $user->id . '.historyBalance');
-            $cashe_hist_user = json_decode($cashe_hist_user);
-            $cashe_hist_user[] = $hist_balance;
-            $cashe_hist_user = json_encode($cashe_hist_user);
-            Cache::put('user.' . $user->id . '.historyBalance', $cashe_hist_user);
-
-            $slot = MobuleSlot::where('id', $user->current_id)->first();
-            if (!$user->is_youtuber && $slot && $slot->title) {
-                Redis::publish('slotsHistory', json_encode([
-                    'id' => $slot->id,
-                    'game_id' => $user->current_id,
-                    'image' => SlotServiceFacade::getImage($slot) ?? '/assets/image/slots/' . implode('', explode(' ', $slot->title)) . '.jpg',
-                    'slot_name' => $slot->title,
-                    'username' => $user->username,
-                    'coef' => number_format(($credit_amount / $user->current_bet), 2),
-                    'win' => $credit_amount
-                ]));
-            }
-        }
-
-        $user->balance += $credit_amount;
-        $user->save();
-        $user->refresh();
-
-        return $user->balance;
-    }
-
-    public function userDebitUpdateAmount($user_id, $debit_amount)
-    {
-        $user = User::where('id', $user_id)->first();
-        Action::create([
-            'user_id' => $user->id,
-            'action' => 'slot (-' . $debit_amount . ')',
-            'balanceBefore' => $user->balance,
-            'balanceAfter' => $user->balance - $debit_amount
-        ]);
-
-        if($user->slots_wager){
-            if ($user->slots_wager > 0) {
-                $user->slots_wager -= $debit_amount;
-            }
-            if ($user->slots_wager < 0) $user->slots_wager = 0;
-        }
-
-        if ($user->wager > 0) {
-            $user->wager -= $debit_amount;
-        }
-
-        if ($user->wager < 0) {
-            $user->wager = 0;
-        }
-
-        $user->balance -= $debit_amount;
-        $user->current_bet = $debit_amount;
-        $user->decrement('slots', $debit_amount);
-        $user->save();
-        $user->refresh();
-
-        return $user->balance;
     }
 }

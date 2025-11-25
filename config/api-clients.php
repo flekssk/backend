@@ -10,21 +10,21 @@ return [
     ],
     'fk' => [
         'base_url' => env('FK_API_BASE_URL', 'https://api.fkwallet.io/v1/'),
-        'public_key' => '6e5d287e58f5b655d56a71aa86a57306',
-        'private_key' => 'U1WJXOaBd2UZhIRXH9wjZXQWRYHTaTqPTmvnT3UyjdQRZzSdeg',
+        'public_key' => '5cc5aeaa9d208c8c4f5beaeec23d88a1',
+        'private_key' => 'EeKfLeyX5uowntuLI9Ar7IxPBB74Z131KdxScVdFniTkAROjJb',
         'base_currency' => CurrenciesEnum::RUB,
-        'terminal_id' => 27585,
-        'terminal_secret_1' => 'ng{U[)Lxh$dg(J*',
+        'terminal_id' => 67498,
+        'terminal_secret_1' => 'W0XgVvbKUJ/Tj/E',
     ],
     'cryptobot' => [
         'base_url' => env('CRYPTOBOT_API_BASE_URL', 'https://pay.crypt.bot/api/'),
-        'app_token' => env('CRYPTOBOT_API_TOKEN', '341318:AAuTlhgBGV6HZWVa0fpOoykCbmaEc6F3AcC'),
+        'app_token' => env('CRYPTOBOT_API_TOKEN', '480562:AA3HJ64uI3MsrCYvdhl1DKTZfrXPbqBotBD'),
         'base_currency' => CurrenciesEnum::USDT,
     ],
     'paradise' => [
         'base_url' => env('PARADISE_API_BASE_URL', 'https://api.p2p-paradise.info/'),
-        'shop_id' => 8,
-        'api_secret' => 'prod_FdxJk1vWwn6whLOc4sQ3GF0g'
+        'shop_id' => 193,
+        'api_secret' => 'prod_mzVzR25W9f12xfgVSwwOIgNs'
     ],
     'expay' => [
         'base_url' => env('EXPAY_API_BASE_URL', 'https://apiv2.expay.cash/api/'),

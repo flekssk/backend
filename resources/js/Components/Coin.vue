@@ -6,7 +6,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as THREE from 'three'
-import coinTexUrl from '@/assets/images/heroes/coin.png'
+import coinTexUrl from '@/Assets/images/heroes/coin.png'
 
 const props = defineProps({
   size: { type: Number, default: 90 },       // размер в px

@@ -35,6 +35,7 @@ class PlayerProfile extends Model
         return [
             'vk_id' => 'integer',
             'welcome_bonus_use' => 'boolean',
+            'limit_payment' => 'boolean',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
             'current_currency' => CurrenciesEnum::class,

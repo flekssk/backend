@@ -10,6 +10,10 @@
   </template>
 
 <script>
+import {router} from "@inertiajs/vue3";
+import {mapActions, mapGetters, mapState} from "pinia";
+import {useUserStore} from "@/Stores/user.js";
+
 export default {
     props: {
         item: {
@@ -22,12 +26,17 @@ export default {
             hasErrored: false,
         };
     },
+    computed: {
+        ...mapState(useUserStore, ['user']),
+    },
     methods: {
+        ...mapActions(useUserStore, ['openAuthModal']),
         handleClick() {
-            console.log(this.item);
-            localStorage.setItem(`slotSource_mobule_${this.item.id}`, 'mobule');
-
-            this.$router.push({ path: `/slots/${this.item.id}` });
+            if (this.user) {
+                router.get(route('play', this.item.id))
+            } else {
+                this.openAuthModal()
+            }
         },
     },
 };

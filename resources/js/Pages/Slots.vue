@@ -1,29 +1,45 @@
 <template>
-  <section class="max-w-6xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-4">Slots</h1>
-    <div class="mb-4 flex items-center gap-3 flex-wrap">
-      <label class="text-gray-300">Filter by provider:</label>
-      <el-select v-model="selectedProvider" placeholder="All Providers" clearable style="min-width: 220px;">
-        <el-option label="All Providers" :value="''" />
-        <el-option v-for="prov in providers" :key="prov" :label="prov" :value="prov" />
-      </el-select>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      <GameCard v-for="g in filteredGames" :key="g.name" :game="g" />
-    </div>
-  </section>
+    <AppLayout>
+        <div>
+            <section class="max-w-6xl mx-auto px-4 py-8">
+                <div class="flex items-center justify-between gap-4 mb-4">
+                    <CategoryTitle>
+                            <span v-if="selectedProvider" class="inline-flex gap-2">
+                                <img :src="selectedProvider.icon" />
+                                <span>{{ selectedProvider?.title }}</span>
+                            </span>
+                        <span v-else>Все игры</span>
+                    </CategoryTitle>
+                    <ProvidersSelect class="shrink-0 mb-4"/>
+                </div>
+                <SlotsList :paginated="true" :provider="provider" class="mb-4"/>
+            </section>
+        </div>
+    </AppLayout>
 </template>
 
-<script>
-import { ref, computed } from 'vue';
-import GameCard from '../Components/GameCard.vue';
+<script lang="ts">
+import HeroBanner from '@/Components/HeroBanner.vue';
+import GameCard from '@/Components/GameCard.vue';
+import DonationWidget from '@/Components/DonationWidget.vue';
+import ProvidersList from "@/Components/Slots/ProvidersList.vue";
+import SlotsList from "@/Components/Slots/SlotsList.vue";
+import AppLayout from "../Layouts/AppLayout.vue";
+import ProvidersSelect from "@/Components/Slots/ProvidersSelect.vue";
+import CategoryTitle from "@/Components/CategoryTitle.vue";
+import {useSlotsStore} from "@/Stores/slots";
+import {mapState} from "pinia";
+
 export default {
-  components: { GameCard },
-  setup(){
-    const selectedProvider = ref('');
-    const providers = computed(() => Array.from(new Set(games.value.map(g => g.provider))));
-    const filteredGames = computed(() => !selectedProvider.value ? games.value : games.value.filter(g => g.provider === selectedProvider.value));
-    return { selectedProvider, providers, games, filteredGames };
-  }
-}
+    components: {
+        CategoryTitle,
+        ProvidersSelect, AppLayout, SlotsList, ProvidersList, HeroBanner, GameCard, DonationWidget
+    },
+    computed: {
+        ...mapState(useSlotsStore, ['selectedProvider']),
+        provider() {
+            return this.$page.props.provider ?? null
+        },
+    }
+};
 </script>

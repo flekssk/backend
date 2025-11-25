@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Casts\IdCast;
+use App\Currencies\Enums\CurrenciesEnum;
+use App\Models\Traits\Only;
+use App\Payments\Models\Payment;
+use App\Payments\Models\Withdraw;
+use App\ValueObjects\Id;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,9 +22,11 @@ use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * @property int $id
+ * @property Id $id
  * @property-read PlayerProfile $playerProfile
  * @property-read Collection<Wallet> $wallets
+ * @property-read Collection<Withdraw> $withdraws
+ * @property-read Collection<Payment> $payments
  */
 class User extends Authenticatable
 {
@@ -30,6 +37,7 @@ class User extends Authenticatable
     use Notifiable;
     use TwoFactorAuthenticatable;
     use HasUuids;
+    use Only;
 
     protected $fillable = [
         'name',
@@ -67,5 +75,26 @@ class User extends Authenticatable
     public function wallets(): User|HasMany
     {
         return $this->hasMany(Wallet::class);
+    }
+
+    public function payments(): User|HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function withdraws(): User|HasMany
+    {
+        return $this->hasMany(Withdraw::class);
+    }
+
+    public function getWallet(CurrenciesEnum $currency = CurrenciesEnum::RUB): Wallet
+    {
+        $wallet = $this->wallets->where('currency_code', $currency)->first();
+
+        if ($wallet === null) {
+            throw new \Exception('Wallet not found');
+        }
+
+        return $wallet;
     }
 }

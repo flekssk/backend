@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Payments\PaymentsProviders;
 
 use App\Payments\Api\FK\FKApiClient;
-use App\Models\Payment;
-use App\Models\User;
-use App\Models\Withdraw;
+use App\Payments\DTO\PaymentStatusListRequestDTO;
+use App\Payments\Enum\PaymentProvidersEnum;
 use App\Payments\Enum\WithdrawStatusEnum;
-use App\Payments\Facades\PaymentServiceFacade;
+use App\Payments\Models\Payment;
+use App\Payments\Models\Withdraw;
 use App\Payments\PaymentProvider;
 use App\Payments\ValueObjects\PaymentProviderConfig;
 use App\Payments\ValueObjects\PaymentRedirectResult;
@@ -27,15 +27,14 @@ class FKPaymentProvider extends PaymentProvider
 
     public function pay(Payment $payment): PaymentRedirectResult
     {
-        $amount = $this->reduceAmountByBonusPercents($payment);
         $terminalId = config('api-clients.fk.terminal_id');
         $terminalSecret1 = config('api-clients.fk.terminal_secret_1');
-        $sign = md5($terminalId . ':' . $amount . ':' . $terminalSecret1 . ':RUB:' . $payment->id);
+        $sign = md5($terminalId . ':' . $payment->amount . ':' . $terminalSecret1 . ':RUB:' . $payment->id->uuid());
 
         $data = [
             'm' => $terminalId,
-            'oa' => $amount,
-            'o' => $payment->id,
+            'oa' => $payment->amount,
+            'o' => $payment->id->uuid(),
             'currency' => 'RUB',
             's' => $sign,
             'i' => 1
@@ -49,7 +48,7 @@ class FKPaymentProvider extends PaymentProvider
 
     public function withdraw(Withdraw $withdraw): WithdrawResult
     {
-        if ($withdraw->system !== 'fk') {
+        if ($withdraw->provider !== PaymentProvidersEnum::FK) {
             return new WithdrawResult(false, WithdrawStatusEnum::DECLINE);
         }
 
@@ -76,5 +75,10 @@ class FKPaymentProvider extends PaymentProvider
     public function getBalance(): array
     {
         return $this->client->balance() ?? [];
+    }
+
+    public function getPayments(PaymentStatusListRequestDTO $dto): array
+    {
+        return [];
     }
 }

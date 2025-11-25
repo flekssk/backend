@@ -9,6 +9,7 @@ use App\Http\Requests\Api\v1\Auth\AuthenticationRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -38,6 +39,7 @@ class AuthController extends Controller
 
     public function authenticate(AuthenticationRequest $request)
     {
+        Log::info('test');
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {

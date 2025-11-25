@@ -16,6 +16,7 @@ enum PaymentProvidersEnum: string
     case ONEPAY = 'onepayment';
     case USDT = 'usdt';
     case GOTHAM = 'gotham';
+    case FKS = 'fks';
     case FROM_100_SBP_CASCADE = 'from_100_sbp_cascade';
     case C2C_CASCADE = 'from_100_c2c_cascade';
 }

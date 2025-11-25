@@ -15,7 +15,9 @@ use App\Payments\Api\OnePayment\OnePaymentsApiClient;
 use App\Payments\Api\OnePlat\OnePlatApiClient;
 use App\Payments\Api\Paradise\ParadiseApiClient;
 use App\Payments\Models\Payment;
+use App\Payments\Models\Withdraw;
 use App\Payments\Observers\PaymentsObserver;
+use App\Payments\Observers\WithdrawsObserver;
 use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,6 +28,7 @@ class PaymentsServiceProvider extends ServiceProvider
         $this->registerApiClients();
 
         Payment::observe(PaymentsObserver::class);
+        Withdraw::observe(WithdrawsObserver::class);
     }
 
     public function registerApiClients(): void
@@ -82,7 +85,7 @@ class PaymentsServiceProvider extends ServiceProvider
             return new OnePlatApiClient(
                 new Client([
                     'base_uri' => config('api-clients.1plat.base_url'),
-                    'timeout' => 10.0,
+                    'timeout' => 20.0,
                 ])
             );
         });

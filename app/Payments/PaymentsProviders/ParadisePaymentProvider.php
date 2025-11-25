@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Payments\PaymentsProviders;
 
+use App\Helpers\JsonFixer;
 use App\Payments\Api\Paradise\ParadiseApiClient;
 use App\Payments\Api\Paradise\Requests\ParadisePayRequest;
-use App\Helpers\JsonFixer;
-use App\Models\Payment;
+use App\Payments\Models\Payment;
 use App\Payments\PaymentProvider;
 use App\Payments\ValueObjects\PaymentErrorResult;
 use App\Payments\ValueObjects\PaymentProviderConfig;

@@ -5,7 +5,7 @@
         :close-on-click-modal="false"
         :destroy-on-close="true"
         center
-        class="w-full auth-modal bg-black/90 backdrop-blur-sm py-10"
+        class="w-full auth-modal bg-black/90 backdrop-blur-sm py-10 z-[9999]"
     >
         <!-- HEADER -->
         <template #header>
@@ -15,7 +15,7 @@
                 </div>
                 <div class="am-tabsbar">
                     <button :class="['am-tab', tab==='login' && 'is-active']" @click="tab='login'">Вход</button>
-                    <button :class="['am-tab', tab==='register' && 'is-active']" @click="tab='register'">Регистрация
+<!--                    <button :class="['am-tab', tab==='register' && 'is-active']" @click="tab='register'">Регистрация-->
                     </button>
                 </div>
             </div>
@@ -36,16 +36,19 @@
 
                     <div class="am-row">
                         <el-checkbox v-model="login.remember">Запомнить меня</el-checkbox>
-                        <el-link type="primary" :underline="false">Забыли пароль?</el-link>
                     </div>
 
                     <el-button class="btn-primary w-full" @click="submitLogin">Войти</el-button>
 
                     <div class="am-or"><span>или</span></div>
 
-                    <div class="am-social">
-                        <el-button class="btn-ghost w-full">Google</el-button>
-                        <el-button class="btn-ghost w-full">VK</el-button>
+                    <div class="am-social flex justify-center items-center gap-3 flex-wrap">
+                        <div class="inline-flex">
+                            <VKAuthModal />
+                        </div>
+                        <div class="inline-flex">
+                            <TGAuthModal />
+                        </div>
                     </div>
                 </el-form>
             </div>
@@ -84,10 +87,13 @@
 import Coin from '../Coin.vue'
 import {mapActions, mapState} from "pinia";
 import {useUserStore} from "@/Stores/user";
+import {Icon} from '@iconify/vue'
+import TGAuthModal from "@/Components/Modals/TGAuthModal.vue";
+import VKAuthModal from "@/Components/Modals/VKAuthModal.vue";
 
 export default {
     name: 'AuthModal',
-    components: {Coin},
+    components: {VKAuthModal, TGAuthModal, Coin, Icon},
 
     computed: {
         ...mapState(useUserStore, ['authModalOpen'])
@@ -130,6 +136,9 @@ export default {
 
     methods: {
         ...mapActions(useUserStore, ['closeAuthModal', 'openAuthModal', 'authenticate', 'register']),
+        authTG() {
+            window.onTelegramAuth()
+        },
         onClose() {
             this.closeAuthModal()
         },
@@ -282,6 +291,7 @@ export default {
 :deep(.el-input__inner) {
     color: #e9edf3;
     background-color: #0e1113;
+
     :active {
         border: none;
     }
@@ -337,12 +347,6 @@ export default {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 8px
-}
-
-.am-social {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px
 }
 
 .am-or {

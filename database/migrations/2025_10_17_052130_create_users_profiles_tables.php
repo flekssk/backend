@@ -31,6 +31,7 @@ return new class extends Migration {
             $t->string('tg_id', 50)->nullable();
             $t->boolean('welcome_bonus_use')->default(false);
             $t->boolean('limit_payment')->default(false);
+            $t->decimal('wager')->default(0);
             $t->timestamps();
         });
 
@@ -56,16 +57,17 @@ return new class extends Migration {
             $t->string('slug', 8);
         });
 
-        Schema::create('game_session', function (Blueprint $t) {
-            $t->id();
+        Schema::create('game_sessions', function (Blueprint $t) {
+            $t->uuid('id')->primary();
             $t->uuid('user_id');
             $t->foreignId('game_type_id')->constrained('game_type')->cascadeOnDelete();
             $t->timestamps();
         });
 
-        Schema::create('game_log', function (Blueprint $t) {
+        Schema::create('game_logs', function (Blueprint $t) {
             $t->id();
             $t->uuid('user_id');
+            $t->uuid('game_session_id');
             $t->integer('game_type_id');
             $t->integer('game_id');
             $t->bigInteger('profit');

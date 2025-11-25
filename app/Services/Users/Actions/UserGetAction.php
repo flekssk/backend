@@ -33,6 +33,13 @@ class UserGetAction extends Action
     {
         return response()->json([
             'user' => $request->user()->load(['playerProfile', 'wallets'])
+                ->only([
+                    'id',
+                    'name',
+                    'email',
+                    'wallets',
+                    'player_profile',
+                ]),
         ]);
     }
 }

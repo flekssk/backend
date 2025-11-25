@@ -11,6 +11,8 @@ use App\Payments\ValueObjects\PaymentErrorResult;
 use App\Payments\ValueObjects\PaymentSuccessResult;
 use FKS\Actions\Action;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 
 class PayCallbackAction extends Action
 {
@@ -20,8 +22,17 @@ class PayCallbackAction extends Action
     {
     }
 
-    public function handle(PaymentProvidersEnum $provider, Request $request): PaymentSuccessResult|PaymentErrorResult
+    public function handle(PaymentProvidersEnum $provider, array $data): PaymentSuccessResult|PaymentErrorResult
     {
-        return $this->resolveProvider($provider)->handleCreateCallback($request->all());
+        return $this->resolveProvider($provider)->handleCreateCallback($data);
+    }
+
+    public function asController($provider, Request $request): Response
+    {
+        Log::info("Handle $provider callback", ['data' => $request->all()]);
+
+        $this->handle(PaymentProvidersEnum::from($provider), $request->all());
+
+        return response()->noContent();
     }
 }

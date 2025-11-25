@@ -1,19 +1,24 @@
 <template>
-  <AppLayout>
-      <div>
-          <HeroBanner class="mb-4" />
+    <AppLayout>
+        <div>
+            <HeroBanner class="mb-4"/>
 
-          <section class="max-w-6xl mx-auto px-4 py-8">
-              <ProvidersList class="mb-4" />
+            <section class="max-w-6xl mx-auto px-4 py-8">
+                <CategoryTitle>Провайдеры</CategoryTitle>
+                <ProvidersList class="mb-4"/>
 
-              <SlotsList class="mb-4" />
+                <CategoryTitle v-if="user">Мои игры</CategoryTitle>
+                <SlotsList type="latest" class="mb-4" v-if="user" />
 
-              <div class="my-10">
-                  <DonationWidget/>
-              </div>
-          </section>
-      </div>
-  </AppLayout>
+                <CategoryTitle route-link="slots" >Популярные игры</CategoryTitle>
+                <SlotsList has class="mb-4"/>
+
+                <div class="my-10">
+                    <DonationWidget/>
+                </div>
+            </section>
+        </div>
+    </AppLayout>
 </template>
 
 <script lang="ts">
@@ -23,20 +28,14 @@ import DonationWidget from '@/Components/DonationWidget.vue';
 import ProvidersList from "@/Components/Slots/ProvidersList.vue";
 import SlotsList from "@/Components/Slots/SlotsList.vue";
 import AppLayout from "../Layouts/AppLayout.vue";
+import CategoryTitle from "@/Components/CategoryTitle.vue";
+import {mapState} from "pinia";
+import {useUserStore} from "@/Stores/user";
 
 export default {
-  components: {AppLayout, SlotsList, ProvidersList, HeroBanner, GameCard, DonationWidget},
-  data() {
-    return {
-      topGames: [
-        {name: 'Mega Slots', provider: 'Pragmatic'},
-        {name: 'Royal Spin', provider: 'NetEnt'},
-        {name: 'Poker Pro', provider: 'BGaming'},
-        {name: 'Lucky Wheel', provider: 'Red Tiger'},
-        {name: 'Fruit Rush', provider: 'Hacksaw'},
-        {name: 'Gold Mine', provider: 'Amatic'},
-      ],
-    };
-  },
+    components: {CategoryTitle, AppLayout, SlotsList, ProvidersList, HeroBanner, GameCard, DonationWidget},
+    computed: {
+        ...mapState(useUserStore, ['user'])
+    }
 };
 </script>

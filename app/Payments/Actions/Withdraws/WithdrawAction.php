@@ -7,6 +7,7 @@ namespace App\Payments\Actions\Withdraws;
 use App\Helpers\SettingsHelper;
 use App\Models\User;
 use App\Payments\Events\WithdrawCreatedEvent;
+use App\Payments\Http\Requests\WithdrawRequest;
 use App\Payments\Models\Withdraw;
 use App\Services\Actions\Actions\ActionCreateAction;
 use App\Services\Actions\DTO\ActionCreateDTO;
@@ -16,9 +17,12 @@ use App\Payments\DTO\CreateWithdrawDTO;
 use App\Payments\Enum\PaymentStatusEnum;
 use App\Payments\Enum\WithdrawStatusEnum;
 use App\Payments\Traits\PaymentProvidersResolver;
+use App\ValueObjects\Id;
 use Carbon\Carbon;
 use DomainException;
 use FKS\Actions\Action;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +37,7 @@ class WithdrawAction extends Action
 
     public function handle(CreateWithdrawDTO $dto): Withdraw
     {
-        $withdraw = DB::transaction(function () use ($dto) {
+        return DB::transaction(function () use ($dto) {
             $providerConfig = $this->resolveProviderConfig($dto->provider);
             $methodConfig = $providerConfig->getWithdrawMethodConfig($dto->method);
             $this->validateWithdraw($dto);
@@ -51,23 +55,22 @@ class WithdrawAction extends Action
             $amount = $dto->amount;
 
             $withdraw = Withdraw::create([
+                'id' => Id::make(),
                 'user_id' => $user->id,
                 'wallet' => $dto->wallet,
                 'provider' => $dto->provider,
                 'amount' => $dto->amount,
-                'amount_commission' => (100 - $methodConfig->commissionPercents) / 100,
                 'method' => $dto->method,
                 'variant' => $dto->variant,
                 'status' => WithdrawStatusEnum::CREATE,
             ]);
 
+            $user->getWallet()->decrement('balance', $amount);
+
             WithdrawCreatedEvent::dispatch($withdraw->id);
 
             return $withdraw;
         });
-
-
-        return $withdraw;
     }
 
     public function validateWithdraw(CreateWithdrawDTO $dto): void
@@ -76,22 +79,21 @@ class WithdrawAction extends Action
         $providerMethod = $this->resolveProviderConfig($dto->provider)
             ->getWithdrawMethodConfig($dto->method);
 
+        if ($dto->user->withdraws()->where('status', WithdrawStatusEnum::CREATE)->count() >= 1) {
+            throw new DomainException('Дождитесь предыдущих выплат');
+        }
+
         $data = [
             'wallet' => $dto->wallet,
             'amount' => $dto->amount,
-            'wager' => $dto->user->wager,
-            'slots_wager' => $dto->user->slots_wager,
+            'wager' => $dto->user->playerProfile->wager,
         ];
 
         $rules = [
             'wallet' => $method->walletValidationRules,
-            'amount' => "numeric|min:$providerMethod->min|max:{$dto->user->balance}",
+            'amount' => "numeric|min:$providerMethod->min|max:{$dto->user->getWallet()->balance}",
+            'wager' => 'numeric|max:0'
         ];
-
-        if ($dto->user->wager_status === 1) {
-            $rules['wager'] = 'numeric|max:0';
-            $rules['slots_wager'] = 'numeric|max:0';
-        }
 
         $walletErrors = Arr::mapWithKeys(
             $method->walletValidationErrors,
@@ -102,8 +104,7 @@ class WithdrawAction extends Action
             [
                 'amount.min' => "Минимальная сумма вывода $providerMethod->min руб.",
                 'amount.max' => "Недостаточно средств на счету",
-                'wager.max' => "Необходимо отыграть еще {$dto->user->wager}",
-                'slots_wager.max' => "Необходимо отыграть еще {$dto->user->slots_wager}",
+                'wager.max' => "Необходимо отыграть еще {$dto->user->playerProfile->wager}",
             ],
             $walletErrors,
         );
@@ -118,5 +119,10 @@ class WithdrawAction extends Action
     public function isAutoWithdrawAvailable(Withdraw $withdraw): bool
     {
         return $this->resolveProvider($withdraw->system)?->isAutoWithdrawAvailable($withdraw) ?? false;
+    }
+
+    public function asController(WithdrawRequest $request): JsonResponse
+    {
+        return response()->json($this->handle($request->toDTO()));
     }
 }

@@ -13,9 +13,9 @@ class WithdrawalMethodConfig extends SerializableObject
     public function __construct(
         public int $min,
         public int $commissionPercents,
+        public PaymentMethodEnum $method,
         public bool $hot = false,
         public bool $hidden = false,
-        public PaymentMethodEnum $method,
         public ?int $max = null,
         public ?WithdrawVariantsCollection $variants = null,
         public ?string $image = null,

@@ -20,18 +20,29 @@ services:
       dockerfile: docker/php/Dockerfile
       target: api
     working_dir: /var/www/html
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "${PHP_PORT:-9000}:9000"
     volumes:
       - ./:/var/www/html
+      - ./docker/php/conf/www.conf:/usr/local/etc/php-fpm.d/www.conf
+      - ./docker/php/conf/zz-custom.ini:/usr/local/etc/php/conf.d/zz-custom.ini
     networks:
       - common
     depends_on:
       - redis
+      - nginx
+    healthcheck:
+      test: [ "CMD-SHELL", "php -v >/dev/null" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     environment:
       TZ: Europe/Moscow
+    labels:
+      - co.elastic.logs/enabled=true
+      - co.elastic.logs/json.keys_under_root=true
+      - co.elastic.logs/json.add_error_key=true
+      - co.elastic.logs/json.overwrite_keys=true
 
   redis:
     image: redis:alpine
@@ -43,7 +54,6 @@ services:
       TZ: Europe/Moscow
 
   worker:
-    profiles: [queue]
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -55,9 +65,13 @@ services:
     restart: unless-stopped
     environment:
       TZ: Europe/Moscow
+    labels:
+      - co.elastic.logs/enabled=true
+      - co.elastic.logs/json.keys_under_root=true
+      - co.elastic.logs/json.add_error_key=true
+      - co.elastic.logs/json.overwrite_keys=true
 
   websocket:
-    profiles: [socket]
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -65,12 +79,70 @@ services:
     volumes:
       - ./:/var/www/html
     ports:
-      - "${WS_PORT:-80}:8080"
+      - "${WS_PORT:-8080}:8080"
     depends_on:
       - redis
     networks:
       - common
     restart: unless-stopped
+    labels:
+      - co.elastic.logs/enabled=true
+      - co.elastic.logs/json.keys_under_root=true
+      - co.elastic.logs/json.add_error_key=true
+      - co.elastic.logs/json.overwrite_keys=true
+
+  cron:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: scheduler
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - redis
+    networks:
+      - common
+    restart: unless-stopped
+    working_dir: /var/www/html
+    labels:
+      - co.elastic.logs/enabled=true
+      - co.elastic.logs/json.keys_under_root=true
+      - co.elastic.logs/json.add_error_key=true
+      - co.elastic.logs/json.overwrite_keys=true
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.3
+    container_name: filebeat
+    user: root
+    command: ["-e", "-strict.perms=false", "-E", "logging.to_files=false"]
+    environment:
+      - TZ=Europe/Moscow
+      # Задайте ниже переменные окружения в .env (см. шаг 2)
+      - ELASTICSEARCH_HOSTS=${ELASTICSEARCH_HOSTS}
+      - ELASTIC_USERNAME=${ELASTIC_USERNAME}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    networks:
+      - common
+
+  mysql:
+    image: mysql:8
+    platform: linux/amd64
+    ports:
+      - "33060:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: laravelpassword
+      TZ: Europe/Moscow
+    volumes:
+      - mysql:/var/lib/mysql
+    networks:
+      - common
 
 volumes:
   mysql:

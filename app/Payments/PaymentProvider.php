@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Payments;
 
+use App\Payments\DTO\PaymentStatusDTO;
+use App\Payments\DTO\PaymentStatusListRequestDTO;
 use App\Payments\Models\Payment;
 use App\Payments\Models\Withdraw;
 use App\Payments\DTO\PaymentProviderBalanceDTO;
@@ -45,6 +47,14 @@ abstract class PaymentProvider
         throw new \Exception('Provider do not implement getBalance');
     }
 
+    /**
+     * @return PaymentStatusDTO[]
+     */
+    public function getPayments(PaymentStatusListRequestDTO $dto): array
+    {
+        throw new \Exception('Provider do not implement getPayments');
+    }
+
     public function handleCreateCallback(array $data): PaymentSuccessResult|PaymentErrorResult
     {
         throw new \Exception('Provider do not implement handleCreateCallback');
@@ -53,7 +63,7 @@ abstract class PaymentProvider
     public function reduceAmountByBonusPercents(Payment $payment): float|int
     {
         $amount = $payment->amount;
-        $bonusPercents = $this->config->getPaymentMethodConfig($payment->method)->bonusPercent;
+        $bonusPercents = $this->config->getPaymentMethodConfig($payment->payment_provider_method)->bonusPercent;
 
         if ($bonusPercents) {
             $amount = $payment->amount - ($payment->amount / (100 + $bonusPercents) * $bonusPercents);

@@ -1,6 +1,7 @@
 import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import laravel from "laravel-vite-plugin";
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig(({mode}) => {
     const isDebug = mode === 'debug' || process.env.DEBUG_BUILD === '1'
@@ -13,6 +14,11 @@ export default defineConfig(({mode}) => {
             }),
             vue(),
         ],
+        resolve: {
+            alias: {
+                "@": fileURLToPath(new URL("./resources/js", import.meta.url)),
+            },
+        },
         build: {
             // Отключить минификацию (обфускацию)
             minify: isDebug ? false : 'esbuild',

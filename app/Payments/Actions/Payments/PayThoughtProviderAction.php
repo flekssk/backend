@@ -56,7 +56,10 @@ class PayThoughtProviderAction extends Action
         $validationRules = [
             'amount' => 'required|numeric|min:' . $config->min . '|max:' . $config->max,
         ];
+        $messages = [
+            'amount.min' => 'Минимальная сумма платежа ' . $config->min . ' р.',
+        ];
 
-        Validator::make(['amount' => $payment->amount], $validationRules)->validate();
+        Validator::make(['amount' => $payment->amount], $validationRules, $messages)->validate();
     }
 }

@@ -12,182 +12,152 @@
         :observer="true"
         :observe-parents="true"
         :loop-additional-slides="2"
+        v-if="providers"
         @swiper="onSwiperReady"
     >
         <swiper-slide
             v-for="(provider, index) in providers"
             :key="index"
-            class="providers__item"
-            @click.native="navigateToSlots(provider.title)"
+            class="cursor-pointer providers__item"
+            @click.native="navigateToSlots(provider.id)"
         >
             <img style="width: 190px !important;"
-                 :src="provider.img ? provider.img : '/images/default-provider.png'" alt="provider" />
+                 :src="provider.image ?? '/images/default-provider.png'" alt="provider"/>
         </swiper-slide>
     </swiper>
 </template>
 
-<script>
-import axios from "axios";
-import { Swiper, SwiperSlide } from "swiper/vue";
+<script lang="ts">
+import {Swiper, SwiperSlide} from "swiper/vue";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import { Autoplay } from "swiper/modules";
-
+import {Autoplay} from "swiper/modules";
+import { router } from '@inertiajs/vue3';
+import { route } from 'ziggy-js';
+import {mapActions, mapState} from "pinia";
+import {useSlotsStore} from "@/Stores/slots.js";
+import {nextTick} from "vue";
 
 export default {
-  components: {
-    Swiper,
-    SwiperSlide,
-  },
-  data() {
-    return {
-      Autoplay,
-      providers: [],
-      breakpoints: {
-        0: { slidesPerView: 3.3, spaceBetween: 12 },
-        640: { slidesPerView: 3.3, spaceBetween: 12 },
-        1024: { slidesPerView: 5.3, spaceBetween: 12 },
-        1280: { slidesPerView: 5.3, spaceBetween: 12 }
-      },
-    };
-  },
-  async created() {
-    await this.fetchProviders();
-  },
-  methods: {
-    onSwiperReady(swiperInstance) {
-      this.swiper = swiperInstance;
-      this.swiper.autoplay.start();
+    components: {
+        Swiper,
+        SwiperSlide,
     },
-    navigateToSlots(provider) {
-      this.$router.push({ name: "slots", query: { provider } });
+    data() {
+        return {
+            Autoplay,
+            breakpoints: {
+                0: {slidesPerView: 3.3, spaceBetween: 12},
+                640: {slidesPerView: 3.3, spaceBetween: 12},
+                1024: {slidesPerView: 5.3, spaceBetween: 12},
+                1280: {slidesPerView: 5.3, spaceBetween: 12}
+            },
+        };
     },
+    async created() {
+        await this.fetchProviders();
 
-    async fetchProviders() {
-      try {
-        const response = await axios.post(`/api/v1/slots/providers/list`);
-
-        if (response.data && Array.isArray(response.data)) {
-          // Обработка провайдеров с асинхронной проверкой изображений
-          this.providers = await Promise.all(
-              response.data.map(async (provider) => {
-                const formattedTitle = provider.name.replace(/[^a-zA-Z0-9]/g, "");
-                const svgPath = `https://socia.win/images/providers/${formattedTitle}.svg`;
-                const pngPath = `https://socia.win/images/providers/${formattedTitle}.png`;
-
-                // Проверка наличия картинки
-                const imgPath = (await this.checkImageExists(svgPath))
-                    ? svgPath
-                    : (await this.checkImageExists(pngPath))
-                        ? pngPath
-                        : "/assets/image/soon.png";
-
-                return {
-                  title: provider.title,
-                  img: imgPath,
-                  count: provider.count
-                };
-              })
-          );
-
-          // Обновляем слайдер
-          this.$nextTick(() => {
+        this.$nextTick(() => {
             if (this.$refs.swiper && this.$refs.swiper.swiper) {
-              this.$refs.swiper.swiper.update();
-              this.$refs.swiper.swiper.slideTo(0, 0);
+                this.$refs.swiper.swiper.update();
+                this.$refs.swiper.swiper.slideTo(0, 0);
             }
-          });
-        } else {
-          console.error("Неверный формат данных провайдеров");
-        }
-      } catch (error) {
-        console.error("Ошибка при получении данных провайдеров:", error);
-      }
+        })
     },
+    methods: {
+        ...mapActions(useSlotsStore, ['fetchProviders']),
+        onSwiperReady(swiperInstance) {
+            this.swiper = swiperInstance;
+            this.swiper.autoplay.start();
+        },
+        navigateToSlots(provider) {
+            router.get(route('slots-provider', {provider}))
+        },
 
-    checkImageExists(path) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = path;
-        img.onload = () => resolve(true); // Картинка загружена успешно
-        img.onerror = () => resolve(false); // Картинка не существует
-      });
-    }
-
-
-  }
-};
+    },
+    computed: {
+        ...mapState(useSlotsStore, ['providers']),
+    },
+    watch: {
+        providers() {
+            nextTick(() => {
+                this.swiper?.update()
+                this.swiper?.slideTo?.(0, 0)
+            })
+        },
+    },
+}
 </script>
 
 <style scoped lang="scss">
 .providers-container {
-  padding: 24px 0;
-  background: rgba(31, 27, 41, 0.5215686275);
-  gap: 24px;
-  border-radius: 32px;
+    padding: 24px 0;
+    background: rgba(31, 27, 41, 0.5215686275);
+    gap: 24px;
+    border-radius: 32px;
 
-  .swiper {
-    margin-left: 17px;
-  }
-
-  .providers-container__header {
-    margin-bottom: 24px;
-    padding-left: 15px;
-  }
-
-  .providers__list {
-    position: relative;
-    cursor: pointer;
-    transition: all 0.3s ease;
-
-    display: flex;
-
-    &:deep(.swiper-wrapper) {
-      padding: 10px 0;
+    .swiper {
+        margin-left: 17px;
     }
 
-    .providers__item {
-      min-width: 185px;
-      width: auto;
-      /* background-color: rgba(31, 27, 41, 0.5); */
-      /* border-radius: 16px; */
-      /* padding: 12px; */
-      cursor: pointer;
+    .providers-container__header {
+        margin-bottom: 24px;
+        padding-left: 15px;
+    }
 
-      img {
-        display: block;
-        width: 100%;
-        height: auto;
-        max-height: 100%;
-        border-radius: 16px;
-        object-fit: cover;
+    .providers__list {
+        position: relative;
+        cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: 0 0 12px rgba(255, 255, 255, 0);
-      }
 
-      &:hover {
-        img {
-          box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+        display: flex;
+
+        &:deep(.swiper-wrapper) {
+            padding: 10px 0;
         }
-      }
-    }
-  }
 
-  @media (max-width: 1023px) {
-    border-radius: 0;
+        .providers__item {
+            min-width: 185px;
+            width: auto;
+            /* background-color: rgba(31, 27, 41, 0.5); */
+            /* border-radius: 16px; */
+            /* padding: 12px; */
+            cursor: pointer;
 
-    .providers__item {
-      width: 136px;
-      height: 72px;
-    }
-  }
+            img {
+                display: block;
+                width: 100%;
+                height: auto;
+                max-height: 100%;
+                border-radius: 16px;
+                object-fit: cover;
+                transition: all 0.3s ease;
+                box-shadow: 0 0 12px rgba(255, 255, 255, 0);
+            }
 
-  @media (min-width: 1024px) {
-    .providers__item {
-      width: 206px;
-      height: 110px;
+            &:hover {
+                img {
+                    box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+                }
+            }
+        }
     }
-  }
+
+    @media (max-width: 1023px) {
+        border-radius: 0;
+
+        .providers__item {
+            width: 136px;
+            height: 72px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .providers__item {
+            width: 206px;
+            height: 110px;
+        }
+    }
 }
 </style>

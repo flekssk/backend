@@ -6,17 +6,19 @@ type NoBody  = "get"  | "delete" | "head" | "options"
 
 import axios from "axios"
 import {authToken} from "../../Stores/user";
-
+import {ElMessage} from "element-plus";
 export const http = axios.create({
     headers: {
         Accept: "application/json",
     },
+    baseURL: 'https://socia.win'
 })
+
 
 http.interceptors.request.use((config: any) => {
     try {
         const token = authToken();
-        console.log(token)
+
         if (token) {
             config.headers = config.headers ?? {};
             (config.headers as any).Authorization = `Bearer ${token}`;
@@ -35,11 +37,27 @@ export class ApiClient {
         return this.post(route, condition.toObject())
     }
 
-    static post(route: string, data: any): Promise<AxiosResponse<any, any>> {
+    static post(route: string, data: any = {}): Promise<AxiosResponse<any, any>> {
         return this.sendRequest('post' , route, data)
+            .catch(e => {
+                if (e.response?.status === 422) {
+                    Object.entries(e.response.data.errors).forEach(([field, msgs]) => {
+                        if (!Array.isArray(msgs)) {
+                            return
+                        }
+
+                        msgs.forEach((msg: string) => {
+                            ElMessage.error(msg)
+                        })
+                    })
+                }
+                if (e.response?.status === 500) {
+                    ElMessage.error(e.response.data.message)
+                }
+            })
     }
 
-    static get(route: string, data: any): Promise<AxiosResponse<any, any>> {
+    static get(route: string, data: any = {}): Promise<AxiosResponse<any, any>> {
         return this.sendRequest('get' , route, data)
     }
 

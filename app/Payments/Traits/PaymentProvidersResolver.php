@@ -19,7 +19,7 @@ trait PaymentProvidersResolver
      */
     public static array $configs = [];
 
-    private function resolveProvider(string|PaymentProvidersEnum $provider): ?PaymentProvider
+    public function resolveProvider(string|PaymentProvidersEnum $provider): ?PaymentProvider
     {
         $providerConfig = $this->resolveProviderConfig($provider);
 

@@ -23,6 +23,7 @@ class PaymentMethodConfig extends SerializableObject
         public mixed $cascade = null,
         public ?string $image = null,
         public ?bool $firstBonusGranted = false,
+        public ?bool $invoiceable = false,
     ) {
     }
 }

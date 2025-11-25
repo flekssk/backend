@@ -34,5 +34,17 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_API_KEY'),
+    ],
 
+    'vkontakte' => [
+        'client_id'     => env('VK_CLIENT_ID'),
+        'client_secret' => env('VK_CLIENT_SECRET'),
+        'redirect'      => env('VK_REDIRECT_URI'),
+        // опционально: версия API VK
+        'v' => '5.131',
+    ],
+
+    'base_wager' => 5
 ];

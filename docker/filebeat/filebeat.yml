@@ -1,0 +1,27 @@
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      # Если контейнер не помечен подсказками (labels), применится дефолтный сбор stdout/stderr:
+      hints.default_config:
+        type: container
+        paths:
+          - /var/lib/docker/containers/${data.container.id}/*.log
+        processors:
+          - add_docker_metadata: {}
+
+processors:
+  - add_host_metadata: {}
+  - add_cloud_metadata: {}
+
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOSTS:http://127.0.0.1:9200}"]
+  username: "${ELASTIC_USERNAME:elastic}"
+  password: "${ELASTIC_PASSWORD}"
+  # Для HTTPS укажите свой CA:
+  # ssl:
+  #   certificate_authorities: ["${ELASTIC_CA_CERT}"]
+
+# (необязательно) для загрузки дашбордов и пайплайнов модулей один раз выполните `filebeat setup` (см. шаг 4)
+# setup.kibana:
+#   host: "${KIBANA_HOST:http://127.0.0.1:5601}"

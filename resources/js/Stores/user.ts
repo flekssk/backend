@@ -1,5 +1,7 @@
 import {defineStore} from "pinia"
 import {ApiClient} from "../Services/ApiClient/ApiClient";
+import { router } from '@inertiajs/vue3';
+import {ElMessage} from "element-plus";
 
 // Примеры интерфейсов — подстройте под реальные поля API
 export interface Wallet {
@@ -98,10 +100,12 @@ export const useUserStore = defineStore("user", {
             this.loading = true
             this.error = null
             try {
-                const {data} = await ApiClient.post("/api/v1/auth/login", {email, password})
+                const {data} = await ApiClient.post("/api/v1/auth/authenticate", {email, password})
 
                 this.setToken(data.token)
                 await this.fetchUser()
+
+                ElMessage.info('Вы успешно вошли. Приятной игры.')
             } catch (e) {
                 this.error = e
                 throw e
@@ -111,9 +115,14 @@ export const useUserStore = defineStore("user", {
         },
 
         async register(name: string, email: string, password: string, passwordConfirmation: string) {
-            const response = await ApiClient.post("/api/v1/auth/register", {
+            const {data} = await ApiClient.post("/api/v1/auth/register", {
                 name, email, password, password_confirmation: passwordConfirmation,
             })
+
+            this.setToken(data.token)
+            await this.fetchUser()
+
+            ElMessage.info('Регистрация прошла успешно. Приятной игры.')
         },
 
         async logout(): Promise<void> {
@@ -124,6 +133,8 @@ export const useUserStore = defineStore("user", {
                     this.setToken(null)
                     this.user = null
                 }
+            } finally {
+                window.location.reload()
             }
         },
 

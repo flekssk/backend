@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Payments\PaymentsProviders;
 
+use App\Currencies\Enums\CurrenciesEnum;
 use App\Payments\Api\OnePlat\OnePlatApiClient;
 use App\Payments\Api\OnePlat\Requests\OnePlatPayRequest;
+use App\Payments\Api\OnePlat\Requests\PaymentStatusListRequest;
+use App\Payments\Api\OnePlat\ValueObjects\OnePlatSBPPayment;
+use App\Payments\DTO\PaymentStatusDTO;
+use App\Payments\DTO\PaymentStatusListRequestDTO;
 use App\Payments\Enum\PaymentStatusEnum;
 use App\Payments\Models\Payment;
 use App\Payments\PaymentProvider;
@@ -79,11 +84,34 @@ class OnePlatPaymentProvider extends PaymentProvider
                 ? $payment->amount + (($payment->amount * $payment->bonus) / 100)
                 : $payment->amount;
 
-            $payment->user->increment('wager', $payment->sum * 3);
-            $payment->user->increment('balance', $incrementSum);
+            $payment->user->playerProfile->increment('wager', $payment->sum * 3);
+            $payment->user->wallets->where('currency_code', CurrenciesEnum::RUB)->first()->increment('balance', $incrementSum);
 
             $payment->status = PaymentStatusEnum::SUCCESS;
             $payment->save();
         }
+
+        return new PaymentSuccessResult();
+    }
+
+    /**
+     * @return PaymentStatusDTO[]
+     */
+    public function getPayments(PaymentStatusListRequestDTO $dto): array
+    {
+        return array_map(
+            static fn (OnePlatSBPPayment $status) => new PaymentStatusDTO(Id::make($status->merchantId), $dto->status),
+            $this->apiClient->getPaymentsStatus(
+                new PaymentStatusListRequest(
+                    $dto->dateStart,
+                    $dto->dateEnd,
+                    match ($dto->status) {
+                        PaymentStatusEnum::PENDING => 0,
+                        PaymentStatusEnum::SUCCESS => 1,
+                        PaymentStatusEnum::FAILED => 2,
+                    }
+                )
+            )->payments
+        );
     }
 }

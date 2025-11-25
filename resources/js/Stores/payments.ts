@@ -1,6 +1,7 @@
 import {defineStore} from "pinia";
 import {ApiClient} from "../Services/ApiClient/ApiClient";
-import { useUserStore } from "./user";
+import {useUserStore} from "./user";
+import {ElMessage} from "element-plus";
 
 type MethodMeta = {
     title: string;
@@ -64,7 +65,127 @@ type State = {
     withdrawsProviders: unknown[];
     providers: ProviderDto[];
     methods: Record<string, MethodMeta>;
+    activePayment: Payment | null;
 };
+
+interface PaymentMetadata {
+    metadata_value: string
+    metadata_key: string
+}
+
+class PaymentStatus {
+    public readonly status: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+    constructor(status: 0 | 1 | 2 | 3 | 4 | 5 | 6) {
+        this.status = status;
+    }
+
+    name(): string {
+        const statuses = {
+            0: 'Ожидание',
+            1: 'Зачислено на счет',
+            2: 'Неудача',
+            3: 'Просрочено',
+            4: 'Оплачен',
+            5: 'Отменен',
+            6: 'Ожидает подтверждения',
+        };
+
+        return statuses[this.status]
+    }
+}
+
+type InvoiceType = "show_sbp" | "redirect"
+
+export class SBPInvoiceData {
+    public readonly amount: number
+    public readonly bank: string
+    public readonly name: string
+    public readonly account: string
+
+    constructor(
+        amount: number,
+        bank: string,
+        name: string,
+        account: string,
+    ) {
+        this.amount = amount;
+        this.bank = bank;
+        this.name = name;
+        this.account = account;
+    }
+}
+
+export class RedirectInvoiceData {
+    public readonly url: string
+
+    constructor(
+        url: string,
+    ) {
+        this.url = url;
+    }
+}
+
+export class Payment {
+    public readonly id: string
+    public readonly payment_provider: string
+    public readonly payment_provider_method: string
+    public readonly amount: number
+    public readonly status: PaymentStatus
+    public readonly metadata: PaymentMetadata[]
+    public readonly invoice: SBPInvoiceData | RedirectInvoiceData | null = null
+    public readonly createdAt: Date | null
+    public readonly remainingSecondsToPay: number | null
+
+    constructor(
+        id: string,
+        payment_provider: string,
+        payment_provider_method: string,
+        amount: number,
+        status: 0 | 1 | 2 | 3,
+        metadata: PaymentMetadata[],
+        createdAt: Date = null,
+        remainingSecondsToPay: number = null,
+    ) {
+        this.id = id
+        this.payment_provider = payment_provider
+        this.payment_provider_method = payment_provider_method
+        this.status = new PaymentStatus(status)
+        this.amount = amount
+        this.metadata = metadata
+        this.invoice = this.buildInvoice()
+        this.createdAt = createdAt
+        this.remainingSecondsToPay = remainingSecondsToPay
+    }
+
+    buildInvoice(): SBPInvoiceData | RedirectInvoiceData | null {
+        if (this.payment_provider_method === 'sbp') {
+            const amount = this.metadata.find(m => m.metadata_key === 'amount')?.metadata_value
+            const bank = this.metadata.find(m => m.metadata_key === 'bank')?.metadata_value
+            const name = this.metadata.find(m => m.metadata_key === 'name')?.metadata_value
+            const account = this.metadata.find(m => m.metadata_key === 'phone')?.metadata_value
+
+            if (
+                !Number.isInteger(amount)
+                || bank === undefined
+                || name === undefined
+                || account === undefined
+            ) {
+                throw new Error('Invalid SBP invoice data')
+            }
+
+            return new SBPInvoiceData(Number.parseInt(amount), bank, name, account)
+        } else {
+            const url = this.metadata?.find(m => m.metadata_key === 'url')?.metadata_value
+
+            if (url === undefined) {
+                return null;
+            }
+
+            return new RedirectInvoiceData(url)
+        }
+    }
+}
 
 function buildPaymentMethodItem(
     meta: MethodMeta | undefined,
@@ -108,6 +229,19 @@ function buildWithdrawMethodItem(
     return item;
 }
 
+export function buildPayment(data: any): Payment {
+    return new Payment(
+        data.id,
+        data.payment_provider,
+        data.payment_provider_method,
+        data.amount,
+        data.status,
+        data.metadata,
+        new Date(data.created_at),
+        data.remaining_seconds_to_pay
+    )
+}
+
 export const usePaymentsStore = defineStore("payments", {
     state: (): State => ({
         paymentsModalOpen: false,
@@ -116,10 +250,12 @@ export const usePaymentsStore = defineStore("payments", {
         withdrawsProviders: [],
         providers: [],
         methods: {},
+        activePayment: null
     }),
     getters: {
         availablePaymentMethods: (s: State): PaymentMethodView[] => {
             const result: PaymentMethodView[] = [];
+
             s.providers.forEach((provider) => {
                 provider.payment?.forEach((payment) => {
                     const item = buildPaymentMethodItem(
@@ -154,6 +290,7 @@ export const usePaymentsStore = defineStore("payments", {
             const userId = userStore.user?.id ?? null;
 
             this.fetchPaymentMethods({userId})
+            this.fetchActivePayments()
         },
         closePaymentsModal() {
             this.paymentsModalOpen = false;
@@ -162,36 +299,116 @@ export const usePaymentsStore = defineStore("payments", {
             this.paymentsTab = tab;
         },
         setProviders(providers: ProviderDto[]): void {
-            this.providers = Array.isArray(providers) ? providers : [];
+            this.providers = providers ?? [];
         },
         setMethods(methods: Record<string, MethodMeta>): void {
-            this.methods = methods ?? {};
+            this.methods = methods ?? [];
         },
-        async fetchPaymentMethods(
-            opts: { force?: boolean; userId?: string | null } = {}
+        async createPayment({amount, paymentProvider, paymentProviderMethod}: {
+            amount: number;
+            paymentProvider: string;
+            paymentProviderMethod: string;
+        }): Promise<any> {
+            const payment = await ApiClient.post('/api/v1/payments', {
+                amount,
+                payment_provider: paymentProvider,
+                payment_method: paymentProviderMethod,
+            })
+
+            if (Array.isArray(payment?.data.errors)) {
+                payment?.data.errors.forEach((error: string) => {
+                    ElMessage.error(error)
+                })
+
+                return
+            }
+
+            this.activePayment = buildPayment(payment.data)
+        },
+        async createWithdraw({amount, wallet, paymentProvider, paymentProviderMethod, paymentProviderVariant}: {
+            amount: number;
+            wallet: string;
+            paymentProvider: string;
+            paymentProviderMethod: string;
+            paymentProviderVariant: string | null;
+        }): Promise<any> {
+            console.log(
+                amount
+            )
+            const payment = await ApiClient.post('/api/v1/withdraw', {
+                amount,
+                wallet,
+                payment_provider: paymentProvider,
+                payment_method: paymentProviderMethod,
+                payment_variant: paymentProviderVariant,
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        ElMessage.success('Выплата прошла успешно')
+                        useUserStore().fetchUser()
+                    }
+                })
+        },
+        async fetchActivePayments(s: State): Promise<Payment> {
+            try {
+                let response = await ApiClient.post('/api/v1/payments/active', {})
+
+                this.activePayment = buildPayment(response.data)
+
+                return this.activePayment
+            } catch (e) {
+                this.activePayment = null
+
+                return null
+            }
+        },
+        fetchPaymentMethods(
+            opts: { force?: boolean; } = {}
         ): Promise<void> {
-            const { force = false, userId = null } = opts;
+            const {force = false} = opts;
             if (this.providers.length && !force) return;
-            if (!userId) return;
 
             try {
-                const response = await ApiClient.get(
+                ApiClient.get(
                     `/api/v1/user/payment-providers`,
                     {}
-                );
-                const data = response?.data ?? {};
+                ).then((response: any) => {
+                    const data = response?.data ?? {};
 
-                const methods: Record<string, MethodMeta> =
-                    data && typeof data.methods === "object" ? data.methods : {};
-                const providers: ProviderDto[] = Array.isArray(data.providers)
-                    ? data.providers
-                    : [];
-
-                this.setMethods(methods);
-                this.setProviders(providers);
+                    this.setMethods(data.methods);
+                    this.setProviders(Object.values(data.providers ?? {}));
+                })
             } catch {
                 // Опционально: обработка ошибок/логирование
             }
         },
+
+        async markPayed(id: string) {
+            const response = await ApiClient.post(`/api/v1/user/payments/${id}/payed`)
+
+            if (response.status === 200) {
+                ElMessage.success('Платеж в обработке')
+            }
+        },
+
+        async cancelPayment(id: string) {
+            const response = await ApiClient.post(`/api/v1/user/payments/${id}/cancel`)
+
+            if (response.status === 200) {
+                ElMessage.success('Платеж отменен')
+
+                this.activePayment = null
+            }
+        },
+
+        async awaitPayment(id: string) {
+            const response = await ApiClient.post(`/api/v1/user/payments/${id}/await`)
+
+            if (response.status === 200) {
+                ElMessage.success('Платеж в ожидание')
+
+                this.activePayment = null
+            }
+        }
     },
 });

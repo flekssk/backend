@@ -18,6 +18,21 @@ use App\Payments\PaymentsProviders\USDTPaymentProvider;
 
 return [
     'providers' => [
+        PaymentProvidersEnum::FKS->value => [
+            'class' => \App\Payments\PaymentsProviders\FKSPaymentProvider::class,
+            'base_currency' => CurrenciesEnum::RUB,
+            'provider' => PaymentProvidersEnum::FKS,
+            'payment' => [
+                [
+                    'hidden' => true,
+                    'min' => 1000,
+                    'max' => 300000,
+                    'method' => PaymentMethodEnum::SBP,
+                    'image' => '/images/withdraw/bank-sb.png',
+                    'invoiceable' => true
+                ]
+            ],
+        ],
         PaymentProvidersEnum::CRYPTOBOT->value => [
             'class' => CryptobotPaymentProvider::class,
             'base_currency' => CurrenciesEnum::USDT,
@@ -27,10 +42,10 @@ return [
                     'method' => PaymentMethodEnum::CRYPTOBOT,
                     'min' => 1,
                     'max' => 300000,
-                    'bonus_percent' => 10,
+                    'bonus_percent' => 50,
                     'hot' => true,
                     'position' => 1,
-                    'image' => '/assets/withdraw/bank-cryptobot.png',
+                    'image' => '/images/withdraw/bank-cryptobot.png',
                 ]
             ],
             'withdraw' => [
@@ -41,7 +56,7 @@ return [
                     'hidden' => false,
                     'position' => 1,
                     'commission_percents' => 0,
-                    'image' => '/assets/withdraw/bank-cryptobot.png',
+                    'image' => '/images/withdraw/bank-cryptobot.png',
                 ]
             ],
         ],
@@ -54,10 +69,10 @@ return [
                     'method' => PaymentMethodEnum::FK,
                     'min' => 10,
                     'max' => 300000,
-                    'bonus_percent' => 5,
+                    'bonus_percent' => 50,
                     'hot' => true,
                     'position' => 2,
-                    'image' => '/assets/withdraw/bank-fk.png',
+                    'image' => '/images/withdraw/bank-fk.png',
                 ]
             ],
             'withdraw' => [
@@ -68,7 +83,7 @@ return [
                     'hidden' => false,
                     'position' => 2,
                     'commission_percents' => 5,
-                    'image' => '/assets/withdraw/bank-fk.png',
+                    'image' => '/images/withdraw/bank-fk.png',
                 ]
             ]
         ],
@@ -78,13 +93,15 @@ return [
             'provider' => PaymentProvidersEnum::BLVCKPAY,
             'payment' => [
                 [
+                    'hidden' => true,
                     'method' => PaymentMethodEnum::SBP_QR,
                     'min' => 500,
                     'max' => 300000,
+                    'bonus_percent' => 50,
                     'min_payments_count' => 1,
                     'hot' => true,
                     'position' => 3,
-                    'image' => '/assets/withdraw/bank-sb.png',
+                    'image' => '/images/withdraw/bank-sb.png',
                 ]
             ],
         ],
@@ -95,14 +112,15 @@ return [
             'payment' => [
                 [
                     'cascade' => [
-                        PaymentProvidersEnum::PARADISE,
+                        PaymentProvidersEnum::FKS,
                         PaymentProvidersEnum::ONE_PLAT,
                     ],
                     'first_bonus_granted' => true,
                     'method' => PaymentMethodEnum::SBP,
+                    'bonus_percent' => 50,
                     'min' => 100,
                     'max' => 300000,
-                    'image' => '/assets/withdraw/bank-sb.png',
+                    'image' => '/images/withdraw/bank-sb.png',
                 ]
             ]
         ],
@@ -116,7 +134,7 @@ return [
                     'method' => PaymentMethodEnum::SBP,
                     'min' => 100,
                     'max' => 300000,
-                    'image' => '/assets/withdraw/bank-sb.png',
+                    'image' => '/images/withdraw/bank-sb.png',
                 ]
             ],
         ],
@@ -130,21 +148,8 @@ return [
                     'min' => 100,
                     'max' => 300000,
                     'method' => PaymentMethodEnum::SBP,
-                    'image' => '/assets/withdraw/bank-sb.png',
-                ]
-            ],
-        ],
-        PaymentProvidersEnum::GTX->value => [
-            'class' => \App\Payments\PaymentsProviders\GTXPaymentProvider::class,
-            'base_currency' => CurrenciesEnum::RUB,
-            'provider' => PaymentProvidersEnum::GTX,
-            'payment' => [
-                [
-                    'hidden' => true,
-                    'min' => 3000,
-                    'max' => 300000,
-                    'method' => PaymentMethodEnum::C2C,
-                    'image' => '/assets/withdraw/bank-sb.png',
+                    'image' => '/images/withdraw/bank-sb.png',
+                    'invoiceable' => true
                 ]
             ],
         ],
@@ -154,11 +159,11 @@ return [
             'provider' => PaymentProvidersEnum::EXPAY,
             'payment' => [
                 [
-                    'hidden' => false,
+                    'hidden' => true,
                     'min' => 2000,
                     'max' => 300000,
                     'method' => PaymentMethodEnum::C2C,
-                    'image' => '/assets/withdraw/bank-cards.png',
+                    'image' => '/images/withdraw/bank-cards.png',
                 ]
             ],
         ],
@@ -168,7 +173,8 @@ return [
             'provider' => PaymentProvidersEnum::ONEPAY,
             'withdraw' => [
                 [
-                    'min' => 3200,
+                    'hidden' => true,
+                    'min' => 3000,
                     'max' => 300000,
                     'method' => PaymentMethodEnum::SBP,
                     'commission_percents' => 5,
@@ -176,26 +182,26 @@ return [
                         [
                             'title' => 'Сбербанк',
                             'name' => 'sberbank',
-                            'image' => '/assets/image/sberbank_logo.svg'
+                            'image' => '/images/image/sberbank_logo.svg'
                         ],
                         [
                             'title' => 'Тинькофф',
                             'name' => 'tinkoff',
-                            'image' => '/assets/image/tinkoff_logo.svg'
+                            'image' => '/images/image/tinkoff_logo.svg'
                         ],
                         [
                             'title' => 'Альфабанк',
                             'name' => 'alfabank',
-                            'image' => '/assets/image/alfabank_logo.svg'
+                            'image' => '/images/image/alfabank_logo.svg'
                         ],
                     ]
                 ],
                 [
-                    'min' => 3200,
+                    'min' => 3000,
                     'max' => 300000,
                     'method' => PaymentMethodEnum::C2C,
                     'commission_percents' => 5,
-                    'image' => '/assets/withdraw/bank-cards.png',
+                    'image' => '/images/withdraw/bank-cards.png',
                 ],
             ],
         ],
@@ -209,7 +215,7 @@ return [
                     'min' => 1000,
                     'hidden' => false,
                     'commission_percents' => 0,
-                    'image' => '/assets/image/usdt.png',
+                    'image' => '/images/image/usdt.png',
                 ]
             ]
         ],
@@ -223,14 +229,14 @@ return [
                     'min' => 1000,
                     'max' => 30000,
                     'hidden' => true,
-                    'image' => '/assets/withdraw/bank-cards.png',
+                    'image' => '/images/withdraw/bank-cards.png',
                 ],
                 [
                     'method' => PaymentMethodEnum::C2C,
                     'min' => 1,
                     'max' => 999,
                     'hidden' => true,
-                    'image' => '/assets/withdraw/bank-cards.png',
+                    'image' => '/images/withdraw/bank-cards.png',
                 ],
             ]
         ],
@@ -240,7 +246,7 @@ return [
             'icon' => PaymentProviderIconsEnum::CRYPTOBOT,
             'title' => 'Cryptobot',
             'wallet_input_placeholder' => 'Telegram ID',
-            'wallet_input_title' => 'Telegram ID. Узнать свой Telegram ID тут - @MyTidBot',
+            'wallet_input_title' => 'Telegram ID. Узнать свой Telegram ID тут - @userinfobot',
             'wallet_validation_rules' => [
                 'required',
                 'numeric',
